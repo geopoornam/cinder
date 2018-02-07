@@ -174,10 +174,13 @@ def main():
                 LOG.exception(_LE("Delete volume notification failed: %s"),
                               exc_msg, resource=volume_ref)
 
-    snapshots = objects.SnapshotList.get_active_by_window(admin_context,
-                                                          begin, end)
+    snapshots = objects.SnapshotList.get_active_by_window(admin_context, begin, end)
     LOG.debug("Found %d snapshots"), len(snapshots)
     for snapshot_ref in snapshots:
+        
+        snap_created_at = snapshot_ref.created_at.replace(tzinfo=None) if snapshot_ref.created_at else ""
+        snap_deleted_at = snapshot_ref.deleted_at.replace(tzinfo=None) if snapshot_ref.deleted_at else ""    
+        
         try:
             LOG.debug("Send notification for <snapshot_id: %(snapshot_id)s> "
                       "<project_id %(project_id)s> <%(extra_info)s>",
@@ -193,12 +196,12 @@ def main():
                           exc_msg, resource=snapshot_ref)
 
         if (CONF.send_actions and
-                snapshot_ref.created_at > begin and
-                snapshot_ref.created_at < end):
+                snap_created_at > begin and
+                snap_created_at < end):
             try:
                 local_extra_info = {
-                    'audit_period_beginning': str(snapshot_ref.created_at),
-                    'audit_period_ending': str(snapshot_ref.created_at),
+                    'audit_period_beginning': str(snap_created_at),
+                    'audit_period_ending': str(snap_created_at),
                 }
                 LOG.debug("Send create notification for "
                           "<snapshot_id: %(snapshot_id)s> "
@@ -218,13 +221,13 @@ def main():
                 LOG.exception(_LE("Create snapshot notification failed: %s"),
                               exc_msg, resource=snapshot_ref)
 
-        if (CONF.send_actions and snapshot_ref.deleted_at and
-                snapshot_ref.deleted_at > begin and
-                snapshot_ref.deleted_at < end):
+        if (CONF.send_actions and snap_deleted_at and
+                snap_deleted_at > begin and
+                snap_deleted_at < end):
             try:
                 local_extra_info = {
-                    'audit_period_beginning': str(snapshot_ref.deleted_at),
-                    'audit_period_ending': str(snapshot_ref.deleted_at),
+                    'audit_period_beginning': str(snap_deleted_at),
+                    'audit_period_ending': str(snap_deleted_at),
                 }
                 LOG.debug("Send delete notification for "
                           "<snapshot_id: %(snapshot_id)s> "
